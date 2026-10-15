@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stay Active</title>
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--ink:#14201a;--mut:#66756c;--green:#22a559;--green2:#c9f0d8;--red:#e5484d;--line:#e3e8e5}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1411;--card:#17201b;--ink:#eaf2ed;--mut:#8da196;--green2:#173b27;--line:#26332b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,sans-serif;display:grid;place-items:center;min-height:100vh;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px;width:100%;max-width:440px;box-shadow:0 10px 40px #0001}
+h1{margin:0 0 4px;font-size:22px}p.sub{margin:0 0 24px;color:var(--mut);font-size:14px}
+.orb{width:132px;height:132px;border-radius:50%;margin:8px auto 20px;background:var(--line);display:grid;place-items:center;font-size:44px;transition:.4s}
+.on .orb{background:var(--green2);box-shadow:0 0 0 0 #22a55966;animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 24px #22a55900}100%{box-shadow:0 0 0 0 #22a55900}}
+.state{text-align:center;font-weight:700;font-size:20px}.stats{text-align:center;color:var(--mut);font-size:14px;margin:4px 0 24px;min-height:42px}
+label{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin:16px 0 6px}label span{color:var(--mut);font-weight:500}
+input[type=range]{width:100%;accent-color:var(--green)}select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:15px}
+button.main{width:100%;margin-top:24px;padding:16px;border:0;border-radius:16px;font-size:17px;font-weight:700;color:#fff;background:var(--green);cursor:pointer;transition:.2s}
+button.main:hover{transform:translateY(-1px)}.on button.main{background:var(--red)}
+.link{display:block;margin:14px auto 0;background:none;border:0;color:var(--mut);cursor:pointer;font-size:13px;text-decoration:underline}
+.log{margin-top:18px;font-size:12px;color:var(--mut);max-height:90px;overflow:auto}
+.setup{display:none;margin-top:16px;padding:14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:13px}.setup code{display:block;margin:8px 0;padding:10px;background:#0002;border-radius:8px;font-size:12px;word-break:break-all}
+.off #go,.off #test,.off input,.off select{opacity:.4;pointer-events:none}
+.warn{display:none;margin-top:16px;padding:12px;border-radius:12px;background:#e5484d22;color:var(--red);font-size:13px}
+</style></head>
+<body><div class="card" id="app">
+<h1>Stay Active</h1><p class="sub">Keeps your Mac awake and your status green.</p>
+<div class="orb" id="orb">💤</div>
+<div class="state" id="state">Paused</div>
+<div class="stats" id="stats">Press start when you step away.</div>
+<label>Nudge every <span id="ivl">60 s</span></label>
+<input type="range" id="interval" min="15" max="240" step="5" value="60">
+<label>Auto-stop after</label>
+<select id="hours"><option value="0">Never</option><option value="0.5">30 minutes</option><option value="1">1 hour</option><option value="2">2 hours</option><option value="4">4 hours</option><option value="8">8 hours</option></select>
+<button class="main" id="go">Start</button>
+<button class="link" id="test">Test one nudge</button>
+<div class="warn" id="warn"></div>
+<div class="setup" id="setup"><b>Helper not running</b><br>Open Terminal and run:<code>git clone https://github.com/manisha22stylewithmini-spec/Teams-status-keeper.git<br>cd Teams-status-keeper &amp;&amp; python3 server.py</code>This page reconnects automatically. First time only: allow your Terminal under System Settings → Privacy &amp; Security → Accessibility.</div>
+<div class="log" id="log"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);let S={};
+const LOCAL=['localhost','127.0.0.1'].includes(location.hostname);
+const BASE=LOCAL?'':'http://localhost:8765';
+const api=(p,b)=>fetch(BASE+'/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
+const fmt=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+'h ':'')+m+'m '+(s%60)+'s'};
+function render(){
+  $('app').className='card'+(S.running?' on':'');
+  $('orb').textContent=S.running?'🟢':'💤';
+  $('state').textContent=S.running?'Active':'Paused';
+  $('go').textContent=S.running?'Stop':'Start';
+  if(S.running){
+    const now=Date.now()/1000, left=S.stopAt?' · stops in '+fmt(S.stopAt-now):'';
+    $('stats').innerHTML='Running for '+fmt(now-S.started)+left+'<br>'+S.nudges+' nudges sent'+(S.last?' · last '+fmt(now-S.last)+' ago':'');
+  } else $('stats').textContent='Press start when you step away.';
+  $('log').innerHTML=(S.log||[]).map(l=>new Date(l.t*1000).toLocaleTimeString()+' — '+l.msg).join('<br>');
+  const bad=(S.log||[]).find(l=>l.msg.startsWith('Nudge failed'));
+  $('warn').style.display=bad?'block':'none';
+  if(bad)$('warn').textContent='Cursor control is blocked. Open System Settings → Privacy & Security → Accessibility and allow your Terminal app, then restart.';
+}
+$('interval').oninput=e=>$('ivl').textContent=e.target.value+' s';
+$('go').onclick=async()=>{try{S=S.running?await api('stop',{}):await api('start',{interval:+$('interval').value,hours:+$('hours').value});render()}catch(e){poll()}};
+$('test').onclick=async()=>{try{S=await api('test',{});render()}catch(e){poll()}};
+async function poll(){
+  try{S=await api('status');$('setup').style.display='none';document.body.classList.remove('off');render()}
+  catch(e){S={running:false,log:[]};render();$('state').textContent='Helper offline';$('orb').textContent='🔌';$('stats').textContent='Start the helper on this Mac to continue.';$('setup').style.display='block';document.body.classList.add('off')}
+}
+poll();setInterval(poll,1000);
+</script></body></html>
