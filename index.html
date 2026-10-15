@@ -40,7 +40,7 @@ button.main:hover{transform:translateY(-1px)}.on button.main{background:var(--re
 <script>
 const $=id=>document.getElementById(id);let S={};
 const LOCAL=['localhost','127.0.0.1'].includes(location.hostname);
-const BASE=LOCAL?'':'http://localhost:8765';
+const BASE=LOCAL?'':'http://127.0.0.1:8765';
 const api=(p,b)=>fetch(BASE+'/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
 const fmt=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+'h ':'')+m+'m '+(s%60)+'s'};
 function render(){
