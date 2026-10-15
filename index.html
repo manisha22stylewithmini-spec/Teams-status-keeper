@@ -20,6 +20,8 @@ button.main:hover{transform:translateY(-1px)}.on button.main{background:var(--re
 .log{margin-top:18px;font-size:12px;color:var(--mut);max-height:90px;overflow:auto}
 .setup{display:none;margin-top:16px;padding:14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:13px}.setup code{display:block;margin:8px 0;padding:10px;background:#0002;border-radius:8px;font-size:12px;word-break:break-all}
 .off #go,.off #test,.off input,.off select{opacity:.4;pointer-events:none}
+.fix.copy{background:var(--green)}
+.fix{margin-top:10px;padding:8px 12px;border:0;border-radius:10px;background:var(--red);color:#fff;font-weight:600;cursor:pointer}
 .warn{display:none;margin-top:16px;padding:12px;border-radius:12px;background:#e5484d22;color:var(--red);font-size:13px}
 </style></head>
 <body><div class="card" id="app">
@@ -34,14 +36,15 @@ button.main:hover{transform:translateY(-1px)}.on button.main{background:var(--re
 <button class="main" id="go">Start</button>
 <button class="link" id="test">Test one nudge</button>
 <div class="warn" id="warn"></div>
-<div class="setup" id="setup"><b>Helper not running</b><br>Open Terminal and run:<code>git clone https://github.com/manisha22stylewithmini-spec/Teams-status-keeper.git<br>cd Teams-status-keeper &amp;&amp; python3 server.py</code>This page reconnects automatically. First time only: allow your Terminal under System Settings → Privacy &amp; Security → Accessibility.</div>
+<div class="setup" id="setup"><b>Helper not running</b><br>Open Terminal, paste this and press Enter:<code id="cmd">curl -fsSL https://teams-status-keeper.vercel.app/install.sh | bash</code><button class="fix copy" id="copy">Copy command</button>
+<p id="why" style="margin:12px 0 0"></p>This page reconnects by itself within a second of the helper starting.</div>
 <div class="log" id="log"></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);let S={};
 const LOCAL=['localhost','127.0.0.1'].includes(location.hostname);
 const BASE=LOCAL?'':'http://127.0.0.1:8765';
-const api=(p,b)=>fetch(BASE+'/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
+const api=(p,b)=>fetch(BASE+'/api/'+p,{targetAddressSpace:'loopback',method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
 const fmt=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+'h ':'')+m+'m '+(s%60)+'s'};
 function render(){
   $('app').className='card'+(S.running?' on':'');
@@ -53,9 +56,10 @@ function render(){
     $('stats').innerHTML='Running for '+fmt(now-S.started)+left+'<br>'+S.nudges+' nudges sent'+(S.last?' · last '+fmt(now-S.last)+' ago':'');
   } else $('stats').textContent='Press start when you step away.';
   $('log').innerHTML=(S.log||[]).map(l=>new Date(l.t*1000).toLocaleTimeString()+' — '+l.msg).join('<br>');
-  const bad=(S.log||[]).find(l=>l.msg.startsWith('Nudge failed'));
+  const bad=S.trusted===false;
   $('warn').style.display=bad?'block':'none';
-  if(bad)$('warn').textContent='Cursor control is blocked. Open System Settings → Privacy & Security → Accessibility and allow your Terminal app, then restart.';
+  if(bad)$('warn').innerHTML='<b>One permission needed</b><br>macOS must allow cursor control. Click below, switch on <b>Terminal</b> in the list, then restart the helper.<br><button class="fix" id="fix">Open Accessibility settings</button>';
+  if(bad)$('fix').onclick=()=>api('open-settings',{});
 }
 $('interval').oninput=e=>$('ivl').textContent=e.target.value+' s';
 $('go').onclick=async()=>{try{S=S.running?await api('stop',{}):await api('start',{interval:+$('interval').value,hours:+$('hours').value});render()}catch(e){poll()}};
@@ -64,5 +68,8 @@ async function poll(){
   try{S=await api('status');$('setup').style.display='none';document.body.classList.remove('off');render()}
   catch(e){S={running:false,log:[]};render();$('state').textContent='Helper offline';$('orb').textContent='🔌';$('stats').textContent='Start the helper on this Mac to continue.';$('setup').style.display='block';document.body.classList.add('off')}
 }
+$('copy').onclick=()=>{navigator.clipboard.writeText($('cmd').textContent);$('copy').textContent='Copied ✓'};
+const SAFARI=/^((?!chrome|android|crios|edg).)*safari/i.test(navigator.userAgent);
+$('why').innerHTML=LOCAL?'':SAFARI?'<b>Safari blocks hosted pages from reaching your Mac.</b> After starting the helper, open <a href="http://localhost:8765" style="color:inherit">localhost:8765</a> instead, or use Chrome.':'If Chrome asks to allow access to devices on your network, choose <b>Allow</b>. Or open <a href="http://localhost:8765" style="color:inherit">localhost:8765</a> once the helper is running.';
 poll();setInterval(poll,1000);
 </script></body></html>

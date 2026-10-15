@@ -22,6 +22,18 @@ _cg.CGEventCreateMouseEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint32, CGPoin
 _cg.CGEventPost.argtypes = [ctypes.c_uint32, ctypes.c_void_p]
 _cf.CFRelease.argtypes = [ctypes.c_void_p]
 
+_cg.AXIsProcessTrusted.restype = ctypes.c_bool
+
+def trusted():
+    """True when macOS lets this process post input events (Accessibility)."""
+    try:
+        return bool(_cg.AXIsProcessTrusted())
+    except Exception:
+        return False
+
+def open_settings():
+    subprocess.Popen(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"])
+
 def _move_to(x, y):
     ev = _cg.CGEventCreateMouseEvent(None, 5, CGPoint(x, y), 0)  # 5 = mouseMoved
     _cg.CGEventPost(0, ev)  # HID event tap: counts as real input
@@ -63,6 +75,8 @@ class Worker:
             self.running = True
             self.caff = subprocess.Popen(["caffeinate", "-di"])
             self._log(f"Started. Nudging every {self.interval}s")
+            if not trusted():
+                self._log("Nudge failed: Accessibility permission missing")
             self._t = threading.Thread(target=self._loop, daemon=True)
             self._t.start()
 
@@ -97,7 +111,7 @@ class Worker:
     def status(self):
         return {"running": self.running, "interval": self.interval, "started": self.started,
                 "stopAt": self.stop_at, "nudges": self.nudges, "last": self.last,
-                "log": self.log, "now": time.time()}
+                "log": self.log, "now": time.time(), "trusted": trusted()}
 
 W = Worker()
 
@@ -154,6 +168,8 @@ class H(BaseHTTPRequestHandler):
             W.start(body.get("interval", 60), float(body.get("hours", 0)))
         elif self.path == "/api/stop":
             W.stop()
+        elif self.path == "/api/open-settings":
+            open_settings()
         elif self.path == "/api/test":
             try:
                 nudge()
