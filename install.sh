@@ -1,5 +1,5 @@
 #!/bin/bash
-# Teams Status Keeper: installs and starts the local helper (macOS).
+# Desk Pulse: installs and starts the local helper (macOS).
 set -e
 SITE="https://teams-status-keeper.vercel.app"
 DIR="$HOME/.stay-active"

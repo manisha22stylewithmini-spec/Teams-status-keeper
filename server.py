@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stay Active: local helper. Serves the UI and nudges the cursor 1px on an interval."""
+"""Desk Pulse: local helper. Serves the UI and nudges the cursor 1px on an interval."""
 import ctypes, json, subprocess, threading, time, random, os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
